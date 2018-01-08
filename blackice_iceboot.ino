@@ -1,3 +1,4 @@
+#include <FS.h>
 #include <MyStorm.h>
 #include <SPI.h>
 #include <GD2.h>
@@ -67,10 +68,11 @@ public:
   float scrollbar_position_percent;
   uint16_t scroll_offset;
 
+  void append_string(const char* str);
   void append_character(char newchar);
   void update_scrollbar_position(uint16_t new_position);
   void set_scrollbar_handle_size();
-  void make_new_line();
+  void new_line();
   void upload_to_graphics_ram();
   void draw();
 };
@@ -115,7 +117,9 @@ void History::set_scrollbar_handle_size() {
   update_scrollbar_position(65535);
 }
 
-void History::make_new_line() {
+void History::new_line() {
+  // copy linebuffer to FT810 RAM
+  upload_to_graphics_ram();
   cursor_index = 0;
   line_count++;
   if (line_count >= scrollback_length)
@@ -128,9 +132,19 @@ void History::make_new_line() {
   set_scrollbar_handle_size();
 }
 
+void History::append_string(const char* str) {
+  for(int i=0; i<strlen(str); i++) {
+    append_character(str[i]);
+  }
+  // for(char& c : str) {
+  //   // append_character(c);
+  // }
+  // append_character((char) 13);
+}
+
 void History::append_character(char newchar) {
   if (cursor_index >= CHARACTERS_PER_LINE || newchar == 13 || newchar == 10) {
-    make_new_line();
+    new_line();
   }
   else {
     linebuffer[cursor_index++] = newchar;
@@ -173,7 +187,6 @@ History terminal;
 
 void setup() {
   GD.begin();
-  terminal.upload_to_graphics_ram();
 
   Serial.begin(115200);
   Serial1.begin(115200);
@@ -182,22 +195,68 @@ void setup() {
   // digitalWrite(LED_BUILTIN, 1);
   // myStorm.FPGAConfigure((const byte*)0x0801F000, 135100);
   // digitalWrite(LED_BUILTIN, 0);
+
+  terminal.append_string("Welcome!\n\n");
+
+  if (DOSFS.begin() && DOSFS.check()) {
+    terminal.append_string("SDCard Files:\n\n");
+    Dir dir = DOSFS.openDir("/");
+    do {
+      terminal.append_string(dir.fileName().c_str());
+      terminal.new_line();
+    } while (dir.next());
+
+    if (DOSFS.exists("default.bin")) {
+      terminal.append_string("\nFound 'default.bin'\nConfiguring FPGA...");
+      GD.Clear();
+      terminal.draw();
+      GD.swap();
+
+      File file = DOSFS.open("default.bin", "r");
+      if (file) {
+        // use the file as an Arduino Stream to configure the FPGA
+        digitalWrite(LED_BUILTIN, 1);
+        myStorm.FPGAConfigure(file);
+        digitalWrite(LED_BUILTIN, 0);
+        file.close();
+        terminal.append_string("Done\n\n");
+      }
+    }
+
+    DOSFS.end();
+  }
+  else {
+    terminal.append_string("No SDCard found.\n\n");
+  }
+
 }
 
+char newchar1;
+char newchar2;
+
 void loop() {
-  // Random Characters
-  char newchar;
-  // for(i=0; i<GD.random(10); i++) {
-  if (terminal.line_count < terminal.scrollback_length) {
-    for(int i=0; i<40; i++) {
-      newchar = (char) GD.random(256);
-      terminal.append_character(newchar);
-      // sprintf(linebuffer, "%-3u", terminal.line_count);
-    }
-  }
-  // else {
-  //   sprintf(linebuffer, "%u  %u  %u  %f  %u  ", terminal.scrollbar_size, terminal.scrollbar_size_half, terminal.scrollbar_position, terminal.scrollbar_position_percent, terminal.scroll_offset);
+
+  // // Random Characters
+  // char newchar;
+  // if (terminal.line_count < 10) { //terminal.scrollback_length) {
+  //   for(int i=0; i<40; i++) {
+  //     newchar = (char) GD.random(256);
+  //     terminal.append_character(newchar);
+  //     // sprintf(linebuffer, "%-3u", terminal.line_count);
+  //   }
   // }
+
+  while (Serial1.available() > 0) {
+    newchar1 = Serial1.read();
+    terminal.append_character(newchar1);
+    // Serial.write(newchar1);
+  }
+  terminal.upload_to_graphics_ram();
+  while(Serial.available() > 0) {
+    newchar2 = Serial.read();
+    // terminal.append_character(newchar2);
+    Serial1.write(newchar2);
+  }
 
   GD.get_inputs();
   switch (GD.inputs.track_tag & 0xff) {
@@ -205,12 +264,8 @@ void loop() {
     terminal.update_scrollbar_position(GD.inputs.track_val);
   }
 
-  terminal.upload_to_graphics_ram();
-
   GD.Clear();
-
   terminal.draw();
-
   GD.swap();
 
   // Serial.print(analogRead(3)); // horiz
