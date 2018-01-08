@@ -233,6 +233,8 @@ void setup() {
 
 char newchar1;
 char newchar2;
+// TODO use a larger serial data buffer
+uint8_t serial_buffer[512];
 
 void loop() {
 
@@ -252,11 +254,12 @@ void loop() {
     // Serial.write(newchar1);
   }
   terminal.upload_to_graphics_ram();
-  while(Serial.available() > 0) {
-    newchar2 = Serial.read();
-    // terminal.append_character(newchar2);
-    Serial1.write(newchar2);
-  }
+
+  // while(Serial.available() > 0) {
+  //   newchar2 = Serial.read();
+  //   // terminal.append_character(newchar2);
+  //   Serial1.write(newchar2);
+  // }
 
   GD.get_inputs();
   switch (GD.inputs.track_tag & 0xff) {
