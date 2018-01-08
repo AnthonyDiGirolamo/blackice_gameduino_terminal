@@ -40,8 +40,8 @@
 
 #define LINE_PIXEL_HEIGHT 8
 #define CHARACTERS_PER_LINE 60
-#define LINES_PER_SCREEN 34
-#define SCROLLBACK_LENGTH 100
+
+#define TAG_SCROLLBAR 201
 
 const char blank_line[] = "                                                            ";
 char linebuffer[] = "                                                            ";
@@ -53,16 +53,49 @@ public:
   uint16_t cursor_index;
   uint16_t line_count;
   uint16_t last_line_address;
+  uint16_t lines_per_screen;
+  uint16_t scrollback_length;
+  float lines_per_screen_percent;
+  uint16_t scrollbar_size;
+  uint16_t scrollbar_size_half;
+  uint16_t scrollbar_position;
+  float scrollbar_position_percent;
+  uint16_t scroll_offset;
+
   void append_character(char newchar);
+  void update_scrollbar_position(uint16_t new_position);
+  void set_scrollbar_handle_size();
   void make_new_line();
   void upload_to_graphics_ram();
   void draw();
 };
 
 History::History() {
-  cursor_index = 0;
+  lines_per_screen = 34;
+  scrollback_length = 100;
   line_count = 1;
+  cursor_index = 0;
   last_line_address = 0;
+  set_scrollbar_handle_size();
+}
+
+void History::update_scrollbar_position(uint16_t new_position) {
+  scrollbar_position = new_position;
+  if (scrollbar_position < scrollbar_size_half)
+    scrollbar_position = scrollbar_size_half;
+  if (scrollbar_position > 65535 - scrollbar_size_half)
+    scrollbar_position = 65535 - scrollbar_size_half;
+  scrollbar_position_percent = ((float)scrollbar_position - (float)scrollbar_size_half) / (65535.0 - (float)scrollbar_size);
+  scrollbar_position_percent *= 100;
+  scrollbar_position_percent = floor(scrollbar_position_percent);
+  scrollbar_position_percent /= 100;
+  scrollbar_position_percent = 1.0 - scrollbar_position_percent;
+  if (line_count <= lines_per_screen) {
+    scroll_offset = 0;
+  }
+  else {
+    scroll_offset = (uint16_t) (scrollbar_position_percent * ((float)line_count - lines_per_screen));
+  }
 }
 
 void History::upload_to_graphics_ram() {
@@ -70,17 +103,29 @@ void History::upload_to_graphics_ram() {
   GD.copy(linebuffer_const, CHARACTERS_PER_LINE);
 }
 
+void History::set_scrollbar_handle_size() {
+  lines_per_screen_percent = min(1.0, ((float) lines_per_screen) / ((float) line_count));
+  scrollbar_size = (uint16_t) floor(lines_per_screen_percent * 65535.0);
+  scrollbar_size_half = (uint16_t) floor(lines_per_screen_percent * 0.5 * 65535.0);
+  update_scrollbar_position(65535);
+}
+
+void History::make_new_line() {
+  cursor_index = 0;
+  line_count++;
+  if (line_count >= scrollback_length)
+    line_count = scrollback_length;
+  last_line_address++;
+  if (last_line_address > scrollback_length)
+    last_line_address = 0;
+  // erase current line
+  strncpy(linebuffer, blank_line, CHARACTERS_PER_LINE);
+  set_scrollbar_handle_size();
+}
+
 void History::append_character(char newchar) {
   if (cursor_index >= CHARACTERS_PER_LINE || newchar == 13 || newchar == 10) {
-    cursor_index = 0;
-    line_count++;
-    if (line_count >= SCROLLBACK_LENGTH)
-      line_count = SCROLLBACK_LENGTH;
-    last_line_address++;
-    if (last_line_address > SCROLLBACK_LENGTH)
-      last_line_address = 0;
-    // erase current line
-    strncpy(linebuffer, blank_line, CHARACTERS_PER_LINE);
+    make_new_line();
   }
   else {
     linebuffer[cursor_index++] = newchar;
@@ -95,18 +140,24 @@ void History::draw() {
 
   uint16_t current_line_address = last_line_address;
   // TODO add scroll offset
+  if (scroll_offset > 0)
+    current_line_address = (current_line_address + (scrollback_length-scroll_offset)) % scrollback_length;
 
   int16_t ycoord;
   uint16_t min_lines = line_count;
-  if (line_count > LINES_PER_SCREEN)
-    min_lines = LINES_PER_SCREEN;
+  if (line_count > lines_per_screen)
+    min_lines = lines_per_screen;
 
   for (int i=0; i<min_lines; i++) {
     ycoord = GD.h - LINE_PIXEL_HEIGHT - (LINE_PIXEL_HEIGHT * i);
     GD.BitmapSource( current_line_address * CHARACTERS_PER_LINE );
     GD.Vertex2ii(0, ycoord);
-    current_line_address = (current_line_address + (SCROLLBACK_LENGTH-1)) % SCROLLBACK_LENGTH;
+    current_line_address = (current_line_address + (scrollback_length-1)) % scrollback_length;
   }
+
+  GD.Tag(TAG_SCROLLBAR);
+  GD.cmd_scrollbar(GD.w - 10, 5, 10, GD.h-10, OPT_FLAT, scrollbar_position - scrollbar_size_half, scrollbar_size, 65535);
+      GD.cmd_track(GD.w - 10, 5, 10, GD.h-10, TAG_SCROLLBAR);
 }
 
 
@@ -137,16 +188,25 @@ void setup() {
 
 void loop() {
   char newchar;
-  if (lines.line_count < SCROLLBACK_LENGTH) {
-    for(i=0; i<GD.random(10); i++) {
+  // for(i=0; i<GD.random(10); i++) {
+  if (lines.line_count < 100) {
+    for(i=0; i<10; i++) {
       newchar = get_char();
       lines.append_character(newchar);
+      sprintf(linebuffer, "%-3u", lines.line_count);
     }
-    lines.upload_to_graphics_ram();
+  }
+  else {
+    sprintf(linebuffer, "%u  %u  %u  %f  %u  ", lines.scrollbar_size, lines.scrollbar_size_half, lines.scrollbar_position, lines.scrollbar_position_percent, lines.scroll_offset);
   }
 
-  // t = millis();
-  // sprintf(linebuffer, "%-60d", t);
+  GD.get_inputs();
+  switch (GD.inputs.track_tag & 0xff) {
+  case TAG_SCROLLBAR:
+    lines.update_scrollbar_position(GD.inputs.track_val);
+  }
+
+  lines.upload_to_graphics_ram();
 
   GD.Clear();
 
