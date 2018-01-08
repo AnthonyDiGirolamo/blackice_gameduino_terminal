@@ -77,7 +77,7 @@ public:
 
 History::History() {
   lines_per_screen = 34;
-  scrollback_length = 100;
+  scrollback_length = 200;
   line_count = 1;
   cursor_index = 0;
   last_line_address = 0;
@@ -144,7 +144,6 @@ void History::draw() {
   GD.ColorRGB(WHITE);
 
   uint16_t current_line_address = last_line_address;
-  // TODO add scroll offset
   if (scroll_offset > 0)
     current_line_address = (current_line_address + (scrollback_length-scroll_offset)) % scrollback_length;
 
@@ -160,7 +159,7 @@ void History::draw() {
     current_line_address = (current_line_address + (scrollback_length-1)) % scrollback_length;
   }
 
-  GD.ColorA(64); // 64/256
+  GD.ColorA(64); // alpha to 64/256
   GD.cmd_bgcolor(VALHALLA);
   GD.cmd_fgcolor(LIGHT_STEEL_BLUE);
 
@@ -170,21 +169,11 @@ void History::draw() {
 }
 
 
-char numbers[256];
-char get_char() {
-  return numbers[GD.random(256)];
-}
-
-uint32_t i, t;
-
-History lines;
+History terminal;
 
 void setup() {
-  for(i=0; i<256; i++)
-    numbers[i]=i;
-
   GD.begin();
-  lines.upload_to_graphics_ram();
+  terminal.upload_to_graphics_ram();
 
   Serial.begin(115200);
   Serial1.begin(115200);
@@ -196,33 +185,32 @@ void setup() {
 }
 
 void loop() {
+  // Random Characters
   char newchar;
   // for(i=0; i<GD.random(10); i++) {
-  if (lines.line_count < 100) {
-    for(i=0; i<40; i++) {
-      newchar = get_char();
-      lines.append_character(newchar);
-      sprintf(linebuffer, "%-3u", lines.line_count);
+  if (terminal.line_count < terminal.scrollback_length) {
+    for(int i=0; i<40; i++) {
+      newchar = (char) GD.random(256);
+      terminal.append_character(newchar);
+      // sprintf(linebuffer, "%-3u", terminal.line_count);
     }
   }
-  else {
-    sprintf(linebuffer, "%u  %u  %u  %f  %u  ", lines.scrollbar_size, lines.scrollbar_size_half, lines.scrollbar_position, lines.scrollbar_position_percent, lines.scroll_offset);
-  }
+  // else {
+  //   sprintf(linebuffer, "%u  %u  %u  %f  %u  ", terminal.scrollbar_size, terminal.scrollbar_size_half, terminal.scrollbar_position, terminal.scrollbar_position_percent, terminal.scroll_offset);
+  // }
 
   GD.get_inputs();
   switch (GD.inputs.track_tag & 0xff) {
   case TAG_SCROLLBAR:
-    lines.update_scrollbar_position(GD.inputs.track_val);
+    terminal.update_scrollbar_position(GD.inputs.track_val);
   }
 
-  lines.upload_to_graphics_ram();
+  terminal.upload_to_graphics_ram();
 
   GD.Clear();
 
-  lines.draw();
+  terminal.draw();
 
-  // GD.BitmapSource(60);
-  // GD.Vertex2ii(0, 9);
   GD.swap();
 
   // Serial.print(analogRead(3)); // horiz
