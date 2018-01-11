@@ -2,6 +2,7 @@
 #include <MyStorm.h>
 #include <SPI.h>
 #include <GD2.h>
+#include "circular_buffer.h"
 
 // DB32 Pallete
 // https://github.com/geoffb/dawnbringer-palettes
@@ -48,6 +49,8 @@
 #define SCROLLBAR_HALF_WIDTH 10
 
 #define TAG_SCROLLBAR 201
+#define TAG_BUTTON1   202
+#define TAG_BUTTON2   203
 
 const char blank_line[] = "                                                            ";
 char linebuffer[] = "                                                            ";
@@ -69,7 +72,7 @@ public:
   uint16_t scroll_offset;
 
   void append_string(const char* str);
-  void append_character(char newchar);
+  uint8_t append_character(char newchar);
   void update_scrollbar_position(uint16_t new_position);
   void set_scrollbar_handle_size();
   void new_line();
@@ -111,11 +114,15 @@ void History::upload_to_graphics_ram() {
 }
 
 void History::set_scrollbar_handle_size() {
-  lines_per_screen_percent = min(1.0, ((float) lines_per_screen) / ((float) line_count));
+  lines_per_screen_percent = ((float) lines_per_screen) / ((float) line_count);
+  if (lines_per_screen_percent > 1.0)
+    lines_per_screen_percent = 1.0;
   scrollbar_size = (uint16_t) floor(lines_per_screen_percent * 65535.0);
   scrollbar_size_half = (uint16_t) floor(lines_per_screen_percent * 0.5 * 65535.0);
   update_scrollbar_position(65535);
 }
+
+int32_t unread_count;
 
 void History::new_line() {
   // copy linebuffer to FT810 RAM
@@ -129,6 +136,7 @@ void History::new_line() {
     last_line_address = 0;
   // erase current line
   strncpy(linebuffer, blank_line, CHARACTERS_PER_LINE);
+  // sprintf(linebuffer, "%-3d", unread_count);
   set_scrollbar_handle_size();
 }
 
@@ -142,12 +150,16 @@ void History::append_string(const char* str) {
   // append_character((char) 13);
 }
 
-void History::append_character(char newchar) {
+#define LINE_FULL 0
+#define CHAR_READ 1
+uint8_t History::append_character(char newchar) {
   if (cursor_index >= CHARACTERS_PER_LINE || newchar == 13 || newchar == 10) {
     new_line();
+    return LINE_FULL;
   }
   else {
     linebuffer[cursor_index++] = newchar;
+    return true;
   }
 }
 
@@ -182,8 +194,18 @@ void History::draw() {
       GD.cmd_track(GD.w - SCROLLBAR_WIDTH, SCROLLBAR_HALF_WIDTH, SCROLLBAR_WIDTH, GD.h-SCROLLBAR_WIDTH, TAG_SCROLLBAR);
 }
 
-
 History terminal;
+
+circular_buffer<uint8_t> serial_buffer(512);
+
+void get_data() {
+  __disable_irq();
+  while (Serial1.available() > 0) {
+    serial_buffer.put(Serial1.read());
+    unread_count++;
+  }
+  __enable_irq();
+}
 
 void setup() {
   GD.begin();
@@ -229,12 +251,12 @@ void setup() {
     terminal.append_string("No SDCard found.\n\n");
   }
 
+  terminal.upload_to_graphics_ram();
+
+  Serial1.onReceive(get_data);
 }
 
-char newchar1;
-char newchar2;
-// TODO use a larger serial data buffer
-uint8_t serial_buffer[512];
+uint8_t result;
 
 void loop() {
 
@@ -248,12 +270,19 @@ void loop() {
   //   }
   // }
 
-  while (Serial1.available() > 0) {
-    newchar1 = Serial1.read();
-    terminal.append_character(newchar1);
-    // Serial.write(newchar1);
+  while (!serial_buffer.empty()) {
+    result = terminal.append_character(serial_buffer.get());
+    unread_count--;
+    if (result == LINE_FULL)
+      break;
   }
-  terminal.upload_to_graphics_ram();
+
+  // while (Serial1.available() > 0) {
+  //   newchar1 = Serial1.read();
+  //   terminal.append_character(newchar1);
+  //   // Serial.write(newchar1);
+  // }
+  // terminal.upload_to_graphics_ram();
 
   // while(Serial.available() > 0) {
   //   newchar2 = Serial.read();
@@ -265,10 +294,20 @@ void loop() {
   switch (GD.inputs.track_tag & 0xff) {
   case TAG_SCROLLBAR:
     terminal.update_scrollbar_position(GD.inputs.track_val);
+    break;
+  case TAG_BUTTON1:
+    Serial1.write("words");
+  case TAG_BUTTON2:
+    Serial1.write(13);
+    break;
   }
 
   GD.Clear();
   terminal.draw();
+  GD.Tag(TAG_BUTTON1);
+  GD.cmd_button(352, 12, 40, 30, 28, OPT_FLAT,  "words");
+  GD.Tag(TAG_BUTTON2);
+  GD.cmd_button(400, 12, 40, 30, 28, OPT_FLAT,  "Enter");
   GD.swap();
 
   // Serial.print(analogRead(3)); // horiz
