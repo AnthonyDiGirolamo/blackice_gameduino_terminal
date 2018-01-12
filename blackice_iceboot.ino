@@ -257,10 +257,11 @@ void setup() {
 }
 
 uint8_t result;
+uint32_t last_button_push;
 
 void loop() {
 
-  // // Random Characters
+  // // Random Characters test
   // char newchar;
   // if (terminal.line_count < 10) { //terminal.scrollback_length) {
   //   for(int i=0; i<40; i++) {
@@ -270,12 +271,19 @@ void loop() {
   //   }
   // }
 
+
+  // ISR get_data approach
   while (!serial_buffer.empty()) {
     result = terminal.append_character(serial_buffer.get());
     unread_count--;
     if (result == LINE_FULL)
       break;
   }
+  if (serial_buffer.empty()) {
+    // partial line needs sending
+    terminal.upload_to_graphics_ram();
+  }
+
 
   // while (Serial1.available() > 0) {
   //   newchar1 = Serial1.read();
@@ -296,18 +304,25 @@ void loop() {
     terminal.update_scrollbar_position(GD.inputs.track_val);
     break;
   case TAG_BUTTON1:
-    Serial1.write("words");
+    if (millis() > last_button_push + 200) {
+      Serial1.write("words");
+      last_button_push = millis();
+    }
+    break;
   case TAG_BUTTON2:
-    Serial1.write(13);
+    if (millis() > last_button_push + 200) {
+      Serial1.write(13);
+      last_button_push = millis();
+    }
     break;
   }
 
   GD.Clear();
   terminal.draw();
   GD.Tag(TAG_BUTTON1);
-  GD.cmd_button(352, 12, 40, 30, 28, OPT_FLAT,  "words");
+  GD.cmd_button(352, 12, 40, 30, 18, OPT_FLAT,  "words");
   GD.Tag(TAG_BUTTON2);
-  GD.cmd_button(400, 12, 40, 30, 28, OPT_FLAT,  "Enter");
+  GD.cmd_button(400, 12, 40, 30, 18, OPT_FLAT,  "Enter");
   GD.swap();
 
   // Serial.print(analogRead(3)); // horiz
