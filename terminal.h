@@ -56,9 +56,9 @@
 #define LINE_FULL 0
 #define CHAR_READ 1
 
-class History {
+class Terminal {
 public:
-  History();
+  Terminal();
   uint16_t cursor_index;
   uint16_t line_count;
   uint16_t last_line_address;

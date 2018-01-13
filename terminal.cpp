@@ -4,7 +4,7 @@ const char blank_line[] = "                                                     
 char linebuffer[] = "                                                            ";
 uint8_t *const linebuffer_const = (uint8_t*)linebuffer;
 
-History::History() {
+Terminal::Terminal() {
   lines_per_screen = 34;
   scrollback_length = 200;
   line_count = 1;
@@ -13,7 +13,7 @@ History::History() {
   set_scrollbar_handle_size();
 }
 
-void History::update_scrollbar_position(uint16_t new_position) {
+void Terminal::update_scrollbar_position(uint16_t new_position) {
   scrollbar_position = new_position;
   if (scrollbar_position < scrollbar_size_half)
     scrollbar_position = scrollbar_size_half;
@@ -32,13 +32,13 @@ void History::update_scrollbar_position(uint16_t new_position) {
   }
 }
 
-void History::upload_to_graphics_ram() {
+void Terminal::upload_to_graphics_ram() {
   GD.cmd_memwrite(last_line_address*CHARACTERS_PER_LINE, CHARACTERS_PER_LINE);
   GD.copy(linebuffer_const, CHARACTERS_PER_LINE);
 
 }
 
-void History::set_scrollbar_handle_size() {
+void Terminal::set_scrollbar_handle_size() {
   lines_per_screen_percent = ((float) lines_per_screen) / ((float) line_count);
   if (lines_per_screen_percent > 1.0)
     lines_per_screen_percent = 1.0;
@@ -49,7 +49,7 @@ void History::set_scrollbar_handle_size() {
 
 int32_t unread_count;
 
-void History::new_line() {
+void Terminal::new_line() {
   // copy linebuffer to FT810 RAM
   upload_to_graphics_ram();
   cursor_index = 0;
@@ -65,7 +65,7 @@ void History::new_line() {
   set_scrollbar_handle_size();
 }
 
-void History::append_string(const char* str) {
+void Terminal::append_string(const char* str) {
   for(int i=0; i<strlen(str); i++) {
     append_character(str[i]);
   }
@@ -75,7 +75,7 @@ void History::append_string(const char* str) {
   // append_character((char) 13);
 }
 
-uint8_t History::append_character(char newchar) {
+uint8_t Terminal::append_character(char newchar) {
   if (cursor_index >= CHARACTERS_PER_LINE || newchar == 13 || newchar == 10) {
     new_line();
     return LINE_FULL;
@@ -86,7 +86,7 @@ uint8_t History::append_character(char newchar) {
   }
 }
 
-void History::draw() {
+void Terminal::draw() {
   GD.BitmapSize(NEAREST, BORDER, BORDER, 480, 8);
   GD.BitmapLayout(TEXT8X8, CHARACTERS_PER_LINE, 1);
   GD.Begin(BITMAPS);

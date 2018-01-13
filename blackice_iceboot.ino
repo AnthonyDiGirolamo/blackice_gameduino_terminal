@@ -7,7 +7,7 @@
 
 uint32_t profile_time = 0;
 
-History terminal;
+Terminal terminal;
 
 circular_buffer<uint8_t> serial_buffer(512);
 
