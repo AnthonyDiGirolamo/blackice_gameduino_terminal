@@ -1,8 +1,8 @@
 // Source
 // https://github.com/embeddedartistry/embedded-resources/blob/master/examples/cpp/circular_buffer.cpp
 
-#ifndef __VEC2_H__
-#define __VEC2_H__
+#ifndef __CIRC_H__
+#define __CIRC_H__
 
 #include <Arduino.h>
 /* #include <cstdio> */
@@ -15,13 +15,11 @@ class circular_buffer {
  public:
  circular_buffer(size_t size) :
   buf_(std::unique_ptr<T[]>(new T[size])),
-    size_(size)
-    {
+    size_(size) {
       //empty constructor
     }
 
-  void put(T item)
-  {
+  void put(T item) {
     /* std::lock_guard<std::mutex> lock(mutex_); */
 
     buf_[head_] = item;
@@ -33,14 +31,12 @@ class circular_buffer {
       }
   }
 
-  T get(void)
-  {
+  T get(void) {
     /* std::lock_guard<std::mutex> lock(mutex_); */
 
-    if(empty())
-      {
-        return T();
-      }
+    if(empty()) {
+      return T();
+    }
 
     //Read data and advance the tail (we now have a free space)
     auto val = buf_[tail_];
@@ -49,26 +45,22 @@ class circular_buffer {
     return val;
   }
 
-  void reset(void)
-  {
+  void reset(void) {
     /* std::lock_guard<std::mutex> lock(mutex_); */
     head_ = tail_;
   }
 
-  bool empty(void)
-  {
+  bool empty(void) {
     //if head and tail are equal, we are empty
     return head_ == tail_;
   }
 
-  bool full(void)
-  {
+  bool full(void) {
     //If tail is ahead the head by 1, we are full
     return ((head_ + 1) % size_) == tail_;
   }
 
-  size_t size(void)
-  {
+  size_t size(void) {
     return size_ - 1;
   }
 
@@ -83,8 +75,8 @@ class circular_buffer {
 #endif
 
 /*
-int main(void)
-{
+  int main(void)
+  {
   circular_buffer<uint32_t> circle(10);
   printf("\n === CPP Circular buffer check ===\n");
   printf("Capacity: %zu\n", circle.size());
@@ -97,37 +89,37 @@ int main(void)
 
   printf("Adding 9 values\n");
   for(uint32_t i = 0; i < circle.size(); i++)
-    {
-      circle.put(i);
-    }
+  {
+  circle.put(i);
+  }
 
   printf("Full: %d\n", circle.full());
 
   printf("Reading back values: ");
   while(!circle.empty())
-    {
-      printf("%u ", circle.get());
-    }
+  {
+  printf("%u ", circle.get());
+  }
   printf("\n");
 
   printf("Adding 15 values\n");
   for(uint32_t i = 0; i < circle.size() + 5; i++)
-    {
-      circle.put(i);
-    }
+  {
+  circle.put(i);
+  }
 
   printf("Full: %d\n", circle.full());
 
   printf("Reading back values: ");
   while(!circle.empty())
-    {
-      printf("%u ", circle.get());
-    }
+  {
+  printf("%u ", circle.get());
+  }
   printf("\n");
 
   printf("Empty: %d\n", circle.empty());
-	printf("Full: %d\n", circle.full());
+  printf("Full: %d\n", circle.full());
 
-	return 0;
-}
+  return 0;
+  }
 */

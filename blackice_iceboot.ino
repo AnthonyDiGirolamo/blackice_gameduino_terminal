@@ -3,196 +3,9 @@
 #include <SPI.h>
 #include <GD2.h>
 #include "circular_buffer.h"
+#include "terminal.h"
 
-// DB32 Pallete
-// https://github.com/geoffb/dawnbringer-palettes
-
-#define BLACK            0x000000  // #000000
-#define VALHALLA         0x222034  // #222034
-#define LOULOU           0x45283c  // #45283c
-#define OILED_CEDAR      0x663931  // #663931
-#define ROPE             0x8f563b  // #8f563b
-#define TAHITI_GOLD      0xdf7126  // #df7126
-#define TWINE            0xd9a066  // #d9a066
-#define PANCHO           0xeec39a  // #eec39a
-
-#define GOLDEN_FIZZ      0xfbf236  // #fbf236
-#define ATLANTIS         0x99e550  // #99e550
-#define CHRISTI          0x6abe30  // #6abe30
-#define ELF_GREEN        0x37946e  // #37946e
-#define DELL             0x4b692f  // #4b692f
-#define VERDIGRIS        0x524b24  // #524b24
-#define OPAL             0x323c39  // #323c39
-#define DEEP_KOAMARU     0x3f3f74  // #3f3f74
-
-#define VENICE_BLUE      0x306082  // #306082
-#define ROYAL_BLUE       0x5b6ee1  // #5b6ee1
-#define CORNFLOWER       0x639bff  // #639bff
-#define VIKING           0x5fcde4  // #5fcde4
-#define LIGHT_STEEL_BLUE 0xcbdbfc  // #cbdbfc
-#define WHITE            0xffffff  // #ffffff
-#define HEATHER          0x9badb7  // #9badb7
-#define TOPAZ            0x847e87  // #847e87
-
-#define DIM_GRAY         0x696a6a  // #696a6a
-#define SMOKEY_ASH       0x595652  // #595652
-#define CLAIRVOYANT      0x76428a  // #76428a
-#define BROWN            0xac3232  // #ac3232
-#define MANDY            0xd95763  // #d95763
-#define PLUM             0xd77bba  // #d77bba
-#define RAINFOREST       0x8f974a  // #8f974a
-#define STINGER          0x8a6f30  // #8a6f30
-
-#define LINE_PIXEL_HEIGHT 8
-#define CHARACTERS_PER_LINE 60
-#define SCROLLBAR_WIDTH 20
-#define SCROLLBAR_HALF_WIDTH 10
-
-#define TAG_SCROLLBAR 201
-#define TAG_BUTTON1   202
-#define TAG_BUTTON2   203
-
-const char blank_line[] = "                                                            ";
-char linebuffer[] = "                                                            ";
-uint8_t *const linebuffer_const = (uint8_t*)linebuffer;
-
-class History {
-public:
-  History();
-  uint16_t cursor_index;
-  uint16_t line_count;
-  uint16_t last_line_address;
-  uint16_t lines_per_screen;
-  uint16_t scrollback_length;
-  float lines_per_screen_percent;
-  uint16_t scrollbar_size;
-  uint16_t scrollbar_size_half;
-  uint16_t scrollbar_position;
-  float scrollbar_position_percent;
-  uint16_t scroll_offset;
-
-  void append_string(const char* str);
-  uint8_t append_character(char newchar);
-  void update_scrollbar_position(uint16_t new_position);
-  void set_scrollbar_handle_size();
-  void new_line();
-  void upload_to_graphics_ram();
-  void draw();
-};
-
-History::History() {
-  lines_per_screen = 34;
-  scrollback_length = 200;
-  line_count = 1;
-  cursor_index = 0;
-  last_line_address = 0;
-  set_scrollbar_handle_size();
-}
-
-void History::update_scrollbar_position(uint16_t new_position) {
-  scrollbar_position = new_position;
-  if (scrollbar_position < scrollbar_size_half)
-    scrollbar_position = scrollbar_size_half;
-  if (scrollbar_position > 65535 - scrollbar_size_half)
-    scrollbar_position = 65535 - scrollbar_size_half;
-  scrollbar_position_percent = ((float)scrollbar_position - (float)scrollbar_size_half) / (65535.0 - (float)scrollbar_size);
-  scrollbar_position_percent *= 100;
-  scrollbar_position_percent = floor(scrollbar_position_percent);
-  scrollbar_position_percent /= 100;
-  scrollbar_position_percent = 1.0 - scrollbar_position_percent;
-  if (line_count <= lines_per_screen) {
-    scroll_offset = 0;
-  }
-  else {
-    scroll_offset = (uint16_t) (scrollbar_position_percent * ((float)line_count - lines_per_screen));
-  }
-}
-
-void History::upload_to_graphics_ram() {
-  GD.cmd_memwrite(last_line_address*CHARACTERS_PER_LINE, CHARACTERS_PER_LINE);
-  GD.copy(linebuffer_const, CHARACTERS_PER_LINE);
-}
-
-void History::set_scrollbar_handle_size() {
-  lines_per_screen_percent = ((float) lines_per_screen) / ((float) line_count);
-  if (lines_per_screen_percent > 1.0)
-    lines_per_screen_percent = 1.0;
-  scrollbar_size = (uint16_t) floor(lines_per_screen_percent * 65535.0);
-  scrollbar_size_half = (uint16_t) floor(lines_per_screen_percent * 0.5 * 65535.0);
-  update_scrollbar_position(65535);
-}
-
-int32_t unread_count;
-
-void History::new_line() {
-  // copy linebuffer to FT810 RAM
-  upload_to_graphics_ram();
-  cursor_index = 0;
-  line_count++;
-  if (line_count >= scrollback_length)
-    line_count = scrollback_length;
-  last_line_address++;
-  if (last_line_address > scrollback_length)
-    last_line_address = 0;
-  // erase current line
-  strncpy(linebuffer, blank_line, CHARACTERS_PER_LINE);
-  // sprintf(linebuffer, "%-3d", unread_count);
-  set_scrollbar_handle_size();
-}
-
-void History::append_string(const char* str) {
-  for(int i=0; i<strlen(str); i++) {
-    append_character(str[i]);
-  }
-  // for(char& c : str) {
-  //   // append_character(c);
-  // }
-  // append_character((char) 13);
-}
-
-#define LINE_FULL 0
-#define CHAR_READ 1
-uint8_t History::append_character(char newchar) {
-  if (cursor_index >= CHARACTERS_PER_LINE || newchar == 13 || newchar == 10) {
-    new_line();
-    return LINE_FULL;
-  }
-  else {
-    linebuffer[cursor_index++] = newchar;
-    return true;
-  }
-}
-
-void History::draw() {
-  GD.BitmapSize(NEAREST, BORDER, BORDER, 480, 8);
-  GD.BitmapLayout(TEXT8X8, CHARACTERS_PER_LINE, 1);
-  GD.Begin(BITMAPS);
-  GD.ColorRGB(WHITE);
-
-  uint16_t current_line_address = last_line_address;
-  if (scroll_offset > 0)
-    current_line_address = (current_line_address + (scrollback_length-scroll_offset)) % scrollback_length;
-
-  int16_t ycoord;
-  uint16_t min_lines = line_count;
-  if (line_count > lines_per_screen)
-    min_lines = lines_per_screen;
-
-  for (int i=0; i<min_lines; i++) {
-    ycoord = GD.h - LINE_PIXEL_HEIGHT - (LINE_PIXEL_HEIGHT * i);
-    GD.BitmapSource( current_line_address * CHARACTERS_PER_LINE );
-    GD.Vertex2ii(0, ycoord);
-    current_line_address = (current_line_address + (scrollback_length-1)) % scrollback_length;
-  }
-
-  GD.ColorA(64); // alpha to 64/256
-  GD.cmd_bgcolor(VALHALLA);
-  GD.cmd_fgcolor(LIGHT_STEEL_BLUE);
-
-  GD.Tag(TAG_SCROLLBAR);
-  GD.cmd_scrollbar(GD.w - SCROLLBAR_WIDTH, SCROLLBAR_HALF_WIDTH, SCROLLBAR_WIDTH, GD.h-SCROLLBAR_WIDTH, OPT_FLAT, scrollbar_position - scrollbar_size_half, scrollbar_size, 65535);
-      GD.cmd_track(GD.w - SCROLLBAR_WIDTH, SCROLLBAR_HALF_WIDTH, SCROLLBAR_WIDTH, GD.h-SCROLLBAR_WIDTH, TAG_SCROLLBAR);
-}
+uint32_t profile_time = 0;
 
 History terminal;
 
@@ -202,7 +15,6 @@ void get_data() {
   __disable_irq();
   while (Serial1.available() > 0) {
     serial_buffer.put(Serial1.read());
-    unread_count++;
   }
   __enable_irq();
 }
@@ -260,6 +72,8 @@ uint8_t result;
 uint32_t last_button_push;
 
 void loop() {
+  while (1) {
+    profile_time = micros();
 
   // // Random Characters test
   // char newchar;
@@ -275,10 +89,10 @@ void loop() {
   // ISR get_data approach
   while (!serial_buffer.empty()) {
     result = terminal.append_character(serial_buffer.get());
-    unread_count--;
     if (result == LINE_FULL)
       break;
   }
+
   if (serial_buffer.empty()) {
     // partial line needs sending
     terminal.upload_to_graphics_ram();
@@ -306,6 +120,7 @@ void loop() {
   case TAG_BUTTON1:
     if (millis() > last_button_push + 200) {
       Serial1.write("words");
+      Serial1.write(13);
       last_button_push = millis();
     }
     break;
@@ -342,6 +157,8 @@ void loop() {
   // else if (Serial1.available() > 0) {
   //   Serial.write(Serial1.read());
   // }
+
+  } // while(1)
 
 }
 
