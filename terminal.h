@@ -19,7 +19,7 @@
 
 #define GOLDEN_FIZZ      0xfbf236  // #fbf236
 #define ATLANTIS         0x99e550  // #99e550
-#define CHRISTI          0x6abe30  // #6abe30
+#define RAINFOREST       0x6abe30  // #6abe30
 #define ELF_GREEN        0x37946e  // #37946e
 #define DELL             0x4b692f  // #4b692f
 #define VERDIGRIS        0x524b24  // #524b24
@@ -38,11 +38,11 @@
 #define DIM_GRAY         0x696a6a  // #696a6a
 #define SMOKEY_ASH       0x595652  // #595652
 #define CLAIRVOYANT      0x76428a  // #76428a
-#define BROWN            0xac3232  // #ac3232
+#define RED              0xac3232  // #ac3232
 #define MANDY            0xd95763  // #d95763
 #define PLUM             0xd77bba  // #d77bba
-#define RAINFOREST       0x8f974a  // #8f974a
-#define STINGER          0x8a6f30  // #8a6f30
+#define STINGER          0x8f974a  // #8f974a
+#define BROWN            0x8a6f30  // #8a6f30
 
 #define KEY_BELL 7
 #define KEY_BACKSPACE 8

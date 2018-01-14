@@ -176,11 +176,19 @@ void loop() {
       terminal.draw();
 
       // draw some additional buttons
+      GD.ColorA(64); // alpha to 64/256
+      GD.cmd_bgcolor(VALHALLA);
+      GD.cmd_fgcolor(TOPAZ);
+
       GD.Tag(TAG_BUTTON_BELL);
       GD.cmd_button(10, 12, 40, 30, 18, OPT_FLAT,  "bell");
 
       GD.Tag(TAG_BUTTON_MACRO);
       GD.cmd_button(60, 12, 50, 30, 18, OPT_FLAT,  "words");
+
+      GD.ColorA(128); // alpha to 64/256
+      GD.cmd_bgcolor(BLACK);
+      GD.cmd_fgcolor(DEEP_KOAMARU);
 
       GD.Tag(TAG_BUTTON_RETURN);
       GD.cmd_button(426, 168 + 25, 16*2-1, 50, 18, OPT_FLAT,  "RET");
