@@ -9,13 +9,19 @@ uint32_t profile_time = 0;
 
 Terminal terminal;
 
-circular_buffer<uint8_t> serial_buffer(512);
+circular_buffer<uint8_t> serial_buffer(2048);
+
+volatile uint32_t last_serial_recieve_time = millis();
+volatile int32_t last_pending_chars = 1;
+volatile int32_t pending_chars = 0;
 
 void get_data() {
   __disable_irq();
   while (Serial1.available() > 0) {
     serial_buffer.put(Serial1.read());
+    pending_chars++;
   }
+  last_serial_recieve_time = millis();
   __enable_irq();
 }
 
@@ -85,10 +91,16 @@ void loop() {
   //   }
   // }
 
+    if(pending_chars != last_pending_chars) {
+      Serial.println(pending_chars);
+      last_pending_chars = pending_chars;
+    }
+    if (millis() > last_serial_recieve_time + 100) {
 
   // ISR get_data approach
   while (!serial_buffer.empty()) {
     result = terminal.append_character(serial_buffer.get());
+    pending_chars--;
     if (result == LINE_FULL)
       break;
   }
@@ -139,6 +151,8 @@ void loop() {
   GD.Tag(TAG_BUTTON2);
   GD.cmd_button(400, 12, 40, 30, 18, OPT_FLAT,  "Enter");
   GD.swap();
+
+    }
 
   // Serial.print(analogRead(3)); // horiz
   // Serial.print("  ");
