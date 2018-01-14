@@ -44,6 +44,14 @@
 #define RAINFOREST       0x8f974a  // #8f974a
 #define STINGER          0x8a6f30  // #8a6f30
 
+#define KEY_BELL 7
+#define KEY_BACKSPACE 8
+#define KEY_CR 13
+#define KEY_LF 10
+#define KEY_SPACE 32
+#define KEY_ESC 27
+#define KEY_DEL 127
+
 #define LINE_PIXEL_HEIGHT 8
 #define CHARACTERS_PER_LINE 60
 #define SCROLLBAR_WIDTH 20
@@ -69,6 +77,9 @@ public:
   float scrollbar_position_percent;
   uint16_t scroll_offset;
 
+  uint16_t bell;
+
+  void ring_bell();
   void append_string(const char* str);
   uint8_t append_character(char newchar);
   void update_scrollbar_position(uint16_t new_position);

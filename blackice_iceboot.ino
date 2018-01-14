@@ -5,10 +5,12 @@
 #include "circular_buffer.h"
 #include "terminal.h"
 
-#define TAG_BUTTON1 202
-#define TAG_BUTTON2 203
+#define TAG_BUTTON_MACRO 202
+#define TAG_BUTTON_RETURN 203
+#define TAG_BUTTON_BACKSPACE 204
+#define TAG_BUTTON_BELL 205
 
-#define BUTTON_REPEAT_RATE 200
+#define BUTTON_REPEAT_RATE 100
 uint32_t last_button_push = millis();
 
 Terminal terminal;
@@ -133,14 +135,24 @@ void loop() {
 
       // buttons
       switch (GD.inputs.track_tag) {
-      case TAG_BUTTON1:
+      case TAG_BUTTON_MACRO:
         if (millis() > last_button_push + BUTTON_REPEAT_RATE) {
-          // Serial.println("button1");
           last_button_push = millis();
-          Serial1.write("words");
+          Serial1.write("words\n");
         }
         break;
-      case TAG_BUTTON2:
+      case TAG_BUTTON_BELL:
+        if (millis() > last_button_push + BUTTON_REPEAT_RATE) {
+          terminal.ring_bell();
+        }
+        break;
+      case TAG_BUTTON_BACKSPACE:
+        if (millis() > last_button_push + BUTTON_REPEAT_RATE) {
+          last_button_push = millis();
+          Serial1.write(KEY_BACKSPACE);
+        }
+        break;
+      case TAG_BUTTON_RETURN:
         if (millis() > last_button_push + BUTTON_REPEAT_RATE) {
           // Serial.println("button2");
           last_button_push = millis();
@@ -151,8 +163,9 @@ void loop() {
 
       // keyboard
       key = GD.inputs.tag;
-      // if ' ' <= key < 0x7f (delete)
-      if ((prevkey == 0x00) && (' ' <= key) && (key < 0x7f)) {
+      if (millis() > last_button_push + BUTTON_REPEAT_RATE
+          && (KEY_SPACE <= key) && (key < KEY_DEL)) {
+          last_button_push = millis();
         Serial1.write(key);
       }
       prevkey = key;
@@ -163,11 +176,17 @@ void loop() {
       terminal.draw();
 
       // draw some additional buttons
-      GD.Tag(TAG_BUTTON1);
-      GD.cmd_button(10, 12, 50, 30, 18, OPT_FLAT,  "words");
+      GD.Tag(TAG_BUTTON_BELL);
+      GD.cmd_button(10, 12, 40, 30, 18, OPT_FLAT,  "bell");
 
-      GD.Tag(TAG_BUTTON2);
-      GD.cmd_button(426, 168 + 25, 31, 50, 18, OPT_FLAT,  "RET");
+      GD.Tag(TAG_BUTTON_MACRO);
+      GD.cmd_button(60, 12, 50, 30, 18, OPT_FLAT,  "words");
+
+      GD.Tag(TAG_BUTTON_RETURN);
+      GD.cmd_button(426, 168 + 25, 16*2-1, 50, 18, OPT_FLAT,  "RET");
+
+      GD.Tag(TAG_BUTTON_BACKSPACE);
+      GD.cmd_button(394, 168 - 27, 16*4-1, 24, 18, OPT_FLAT,  "BKSP");
 
       // draw the keyboard rows
       GD.cmd_keys(200-16, 168 - 52, 16*13, 24, 23, OPT_FLAT | key, "~!@#$%^&*()_+");
@@ -175,6 +194,7 @@ void loop() {
       GD.cmd_keys(200,    168,      16*16, 24, 23, OPT_FLAT | key, "qwertyuiop[]\\{}|");
       GD.cmd_keys(200+8,  168 + 26, 16*13, 24, 23, OPT_FLAT | key, "asdfghjkl;':\"");
       GD.cmd_keys(200+16, 168 + 52, 16*13, 24, 23, OPT_FLAT | key, "zxcvbnm,./<>?");
+
       // draw the spacebar
       GD.Tag(' ');
       GD.cmd_button(308 - 60, 172 + 74, 120, 20, 28, OPT_FLAT,   "");

@@ -10,7 +10,12 @@ Terminal::Terminal() {
   line_count = 1;
   cursor_index = 0;
   last_line_address = 0;
+  bell = 0;
   set_scrollbar_handle_size();
+}
+
+void Terminal::ring_bell() {
+  bell = 40;
 }
 
 void Terminal::update_scrollbar_position(uint16_t new_position) {
@@ -76,14 +81,25 @@ void Terminal::append_string(const char* str) {
 }
 
 uint8_t Terminal::append_character(char newchar) {
-  if (cursor_index >= CHARACTERS_PER_LINE || newchar == 13 || newchar == 10) {
+  if (cursor_index >= CHARACTERS_PER_LINE
+      || newchar == KEY_CR
+      || newchar == KEY_LF) {
     new_line();
     return LINE_FULL;
   }
-  else {
+
+  switch (newchar) {
+  case KEY_BACKSPACE:
+    // delete current char if not at the beginning of the line
+    if (cursor_index > 0) {
+      linebuffer[cursor_index--] = ' ';
+    }
+    break;
+  default:
     linebuffer[cursor_index++] = newchar;
-    return true;
+    break;
   }
+  return CHAR_READ;
 }
 
 void Terminal::draw() {
@@ -101,10 +117,17 @@ void Terminal::draw() {
   if (line_count > lines_per_screen)
     min_lines = lines_per_screen;
 
+  uint16_t max_xoffset = 0;
+  if (bell > 10) {
+    max_xoffset = bell / 10;
+    bell--;
+  }
+
   for (int i=0; i<min_lines; i++) {
     ycoord = GD.h - LINE_PIXEL_HEIGHT - (LINE_PIXEL_HEIGHT * i);
     GD.BitmapSource( current_line_address * CHARACTERS_PER_LINE );
-    GD.Vertex2ii(0, ycoord);
+    GD.Vertex2ii(max_xoffset ? GD.random(max_xoffset) : 0,
+                 ycoord);
     current_line_address = (current_line_address + (scrollback_length-1)) % scrollback_length;
   }
 
