@@ -95,13 +95,13 @@ void setup() {
 
 }
 
-// static char message[41];            // 40 character text entry field
-// static byte prevkey;
-
 void loop() {
+  uint8_t prevkey;
+  uint8_t key;
   uint8_t append_character_result;
 
   while (1) {
+
     // if we aren't receiving any new data
     if (millis() > last_serial_recieve_time + 100) {
 
@@ -150,12 +150,12 @@ void loop() {
       }
 
       // keyboard
-      // byte key = GD.inputs.tag;
-      // if ((prevkey == 0x00) && (' ' <= key) && (key < 0x7f)) {
-      //   memmove(message, message + 1, 39);
-      //   message[39] = key;
-      // }
-      // prevkey = key;
+      key = GD.inputs.tag;
+      // if ' ' <= key < 0x7f (delete)
+      if ((prevkey == 0x00) && (' ' <= key) && (key < 0x7f)) {
+        Serial1.write(key);
+      }
+      prevkey = key;
 
       // clear the screen
       GD.Clear();
@@ -167,13 +167,17 @@ void loop() {
       GD.cmd_button(10, 12, 50, 30, 18, OPT_FLAT,  "words");
 
       GD.Tag(TAG_BUTTON2);
-      GD.cmd_button(70, 12, 50, 30, 18, OPT_FLAT,  "Enter");
+      GD.cmd_button(426, 168 + 25, 31, 50, 18, OPT_FLAT,  "RET");
 
-      // GD.cmd_keys(144, 168,      320, 24, 28, OPT_FLAT | OPT_CENTER | key, "qwertyuiop");
-      // GD.cmd_keys(144, 168 + 26, 320, 24, 28, OPT_FLAT | OPT_CENTER | key,   "asdfghjkl");
-      // GD.cmd_keys(144, 168 + 52, 320, 24, 28, OPT_FLAT | OPT_CENTER | key,   "zxcvbnm,.");
-      // GD.Tag(' ');
-      // GD.cmd_button(308 - 60, 172 + 74, 120, 20, 28, options,   "");
+      // draw the keyboard rows
+      GD.cmd_keys(200-16, 168 - 52, 16*13, 24, 23, OPT_FLAT | key, "~!@#$%^&*()_+");
+      GD.cmd_keys(200-16, 168 - 26, 16*13, 24, 23, OPT_FLAT | key, "`1234567890-=");
+      GD.cmd_keys(200,    168,      16*16, 24, 23, OPT_FLAT | key, "qwertyuiop[]\\{}|");
+      GD.cmd_keys(200+8,  168 + 26, 16*13, 24, 23, OPT_FLAT | key, "asdfghjkl;':\"");
+      GD.cmd_keys(200+16, 168 + 52, 16*13, 24, 23, OPT_FLAT | key, "zxcvbnm,./<>?");
+      // draw the spacebar
+      GD.Tag(' ');
+      GD.cmd_button(308 - 60, 172 + 74, 120, 20, 28, OPT_FLAT,   "");
 
       // update the screen
       GD.swap();
