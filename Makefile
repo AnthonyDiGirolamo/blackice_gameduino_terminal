@@ -22,7 +22,7 @@ build:
 	-tools $(HOME)/.arduino15/packages \
 	-built-in-libraries $(ARDUINO_DIR)/libraries \
 	-libraries $(SKETCHBOOK)/libraries \
-	-fqbn=millerresearch:stm32l4:BlackIce:usb=cdc,dosfs=sdmmc,opt=os \
+	-fqbn=millerresearch:stm32l4:BlackIce:usb=cdc,dosfs=sdmmc,opt=o3 \
 	-ide-version=10805 \
 	-build-path $(TARGET_DIR) \
 	-warnings=none \
