@@ -50,8 +50,6 @@
 #define SCROLLBAR_HALF_WIDTH 10
 
 #define TAG_SCROLLBAR 201
-#define TAG_BUTTON1   202
-#define TAG_BUTTON2   203
 
 #define LINE_FULL 0
 #define CHAR_READ 1

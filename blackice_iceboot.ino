@@ -5,39 +5,58 @@
 #include "circular_buffer.h"
 #include "terminal.h"
 
-uint32_t profile_time = 0;
+#define TAG_BUTTON1 202
+#define TAG_BUTTON2 203
+
+#define BUTTON_REPEAT_RATE 200
+uint32_t last_button_push = millis();
 
 Terminal terminal;
 
+// Additional serial_buffer to hold bursts of data.
 circular_buffer<uint8_t> serial_buffer(2048);
 
 volatile uint32_t last_serial_recieve_time = millis();
-volatile int32_t last_pending_chars = 1;
-volatile int32_t pending_chars = 0;
 
-void get_data() {
-  __disable_irq();
+// // debugging vars for monitoring serial_buffer size
+// volatile int32_t last_pending_chars = 1;
+// volatile int32_t pending_chars = 0;
+
+void buffer_serial_data() {
+  __disable_irq(); // don't interrupt inside this interrupt
   while (Serial1.available() > 0) {
     serial_buffer.put(Serial1.read());
-    pending_chars++;
+    // pending_chars++;
   }
   last_serial_recieve_time = millis();
-  __enable_irq();
+  __enable_irq(); // re-enable interrupts
 }
 
 void setup() {
-  GD.begin();
+  GD.begin(); // init gameduino
 
+  // Serial to PC
   Serial.begin(115200);
+
+  // Serial to FPGA
+  // TXD 88 ( P2 PMOD 1/2 )
+  // RXD 85 ( P3 PMOD 1/2 )
   Serial1.begin(115200);
 
+  // When new data comes in on Serial1, run buffer_serial_data()
+  Serial1.onReceive(buffer_serial_data);
+
+  // Configure FPGA from the STM32 flash
   // pinMode(LED_BUILTIN, OUTPUT);
   // digitalWrite(LED_BUILTIN, 1);
   // myStorm.FPGAConfigure((const byte*)0x0801F000, 135100);
   // digitalWrite(LED_BUILTIN, 0);
 
+  // send a string to the terminal
   terminal.append_string("Welcome!\n\n");
 
+  // Check the SD card for bin files to configure the FPGA with
+  // if 'default.bin' exists, use that
   if (DOSFS.begin() && DOSFS.check()) {
     terminal.append_string("SDCard Files:\n\n");
     Dir dir = DOSFS.openDir("/");
@@ -70,109 +89,102 @@ void setup() {
   }
 
   terminal.upload_to_graphics_ram();
-
-  Serial1.onReceive(get_data);
-}
-
-uint8_t result;
-uint32_t last_button_push;
-
-void loop() {
-  while (1) {
-    profile_time = micros();
-
-  // // Random Characters test
-  // char newchar;
-  // if (terminal.line_count < 10) { //terminal.scrollback_length) {
-  //   for(int i=0; i<40; i++) {
-  //     newchar = (char) GD.random(256);
-  //     terminal.append_character(newchar);
-  //     // sprintf(linebuffer, "%-3u", terminal.line_count);
-  //   }
-  // }
-
-    if(pending_chars != last_pending_chars) {
-      Serial.println(pending_chars);
-      last_pending_chars = pending_chars;
-    }
-    if (millis() > last_serial_recieve_time + 100) {
-
-  // ISR get_data approach
-  while (!serial_buffer.empty()) {
-    result = terminal.append_character(serial_buffer.get());
-    pending_chars--;
-    if (result == LINE_FULL)
-      break;
-  }
-
-  if (serial_buffer.empty()) {
-    // partial line needs sending
-    terminal.upload_to_graphics_ram();
-  }
-
-
-  // while (Serial1.available() > 0) {
-  //   newchar1 = Serial1.read();
-  //   terminal.append_character(newchar1);
-  //   // Serial.write(newchar1);
-  // }
-  // terminal.upload_to_graphics_ram();
-
-  // while(Serial.available() > 0) {
-  //   newchar2 = Serial.read();
-  //   // terminal.append_character(newchar2);
-  //   Serial1.write(newchar2);
-  // }
-
-  GD.get_inputs();
-  switch (GD.inputs.track_tag & 0xff) {
-  case TAG_SCROLLBAR:
-    terminal.update_scrollbar_position(GD.inputs.track_val);
-    break;
-  case TAG_BUTTON1:
-    if (millis() > last_button_push + 200) {
-      Serial1.write("words");
-      Serial1.write(13);
-      last_button_push = millis();
-    }
-    break;
-  case TAG_BUTTON2:
-    if (millis() > last_button_push + 200) {
-      Serial1.write(13);
-      last_button_push = millis();
-    }
-    break;
-  }
-
   GD.Clear();
   terminal.draw();
-  GD.Tag(TAG_BUTTON1);
-  GD.cmd_button(352, 12, 40, 30, 18, OPT_FLAT,  "words");
-  GD.Tag(TAG_BUTTON2);
-  GD.cmd_button(400, 12, 40, 30, 18, OPT_FLAT,  "Enter");
   GD.swap();
 
+}
+
+// static char message[41];            // 40 character text entry field
+// static byte prevkey;
+
+void loop() {
+  uint8_t append_character_result;
+
+  while (1) {
+    // if we aren't receiving any new data
+    if (millis() > last_serial_recieve_time + 100) {
+
+      while (!serial_buffer.empty()) {
+        // upload new data to the GPU ram
+        append_character_result = terminal.append_character(serial_buffer.get());
+        // pending_chars--;
+        // if we just completed a single line
+        if (append_character_result == LINE_FULL) {
+          // break out of the loop so the screen can update
+          break;
+        }
+      }
+
+      // if everything has been processed
+      if (serial_buffer.empty()) {
+        // upload the current line to the GPU
+        terminal.upload_to_graphics_ram();
+      }
+
+      GD.get_inputs();
+
+      // scrollbar
+      switch (GD.inputs.track_tag & 0xff) {
+      case TAG_SCROLLBAR:
+        terminal.update_scrollbar_position(GD.inputs.track_val);
+        break;
+      }
+
+      // buttons
+      switch (GD.inputs.track_tag) {
+      case TAG_BUTTON1:
+        if (millis() > last_button_push + BUTTON_REPEAT_RATE) {
+          // Serial.println("button1");
+          last_button_push = millis();
+          Serial1.write("words");
+        }
+        break;
+      case TAG_BUTTON2:
+        if (millis() > last_button_push + BUTTON_REPEAT_RATE) {
+          // Serial.println("button2");
+          last_button_push = millis();
+          Serial1.write(13);
+        }
+        break;
+      }
+
+      // keyboard
+      // byte key = GD.inputs.tag;
+      // if ((prevkey == 0x00) && (' ' <= key) && (key < 0x7f)) {
+      //   memmove(message, message + 1, 39);
+      //   message[39] = key;
+      // }
+      // prevkey = key;
+
+      // clear the screen
+      GD.Clear();
+      // draw the text and scrollbar
+      terminal.draw();
+
+      // draw some additional buttons
+      GD.Tag(TAG_BUTTON1);
+      GD.cmd_button(10, 12, 50, 30, 18, OPT_FLAT,  "words");
+
+      GD.Tag(TAG_BUTTON2);
+      GD.cmd_button(70, 12, 50, 30, 18, OPT_FLAT,  "Enter");
+
+      // GD.cmd_keys(144, 168,      320, 24, 28, OPT_FLAT | OPT_CENTER | key, "qwertyuiop");
+      // GD.cmd_keys(144, 168 + 26, 320, 24, 28, OPT_FLAT | OPT_CENTER | key,   "asdfghjkl");
+      // GD.cmd_keys(144, 168 + 52, 320, 24, 28, OPT_FLAT | OPT_CENTER | key,   "zxcvbnm,.");
+      // GD.Tag(' ');
+      // GD.cmd_button(308 - 60, 172 + 74, 120, 20, 28, options,   "");
+
+      // update the screen
+      GD.swap();
     }
 
-  // Serial.print(analogRead(3)); // horiz
-  // Serial.print("  ");
-  // Serial.print(analogRead(5)); // vert
-  // Serial.println("");
-
-  // if (Serial.available()) {
-  //   digitalWrite(LED_BUILTIN, 1);
-  //   if (myStorm.FPGAConfigure(Serial)) {
-  //     while (Serial.available())
-  //       Serial.read();
-  //     Serial.println("FPGAConfigure done");
-  //   }
-  //   digitalWrite(LED_BUILTIN, 0);
-  // }
-  // else if (Serial1.available() > 0) {
-  //   Serial.write(Serial1.read());
-  // }
+    // // debug output for serial_buffer overflow
+    // if(pending_chars != last_pending_chars) {
+    //   Serial.println(pending_chars);
+    //   last_pending_chars = pending_chars;
+    // }
 
   } // while(1)
-
-}
+} // loop()
 
