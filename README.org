@@ -4,11 +4,11 @@
 
 ** Features
 
-  - [X] Configure BlackIce board from the SD card
-  - [X] 8x8 font, 34 lines, 60 characters per line
-  - [X] Configurable amount of history
-  - [ ] 8x16 VGA font
-  - [ ] 16 color escape sequences
+  - =[X]= Configure BlackIce board from the SD card
+  - =[X]= 8x8 font, 34 lines, 60 characters per line
+  - =[X]= Configurable amount of history
+  - =[ ]= 8x16 VGA font
+  - =[ ]= 16 color escape sequences
 
 ** Dev environment setup
 
@@ -26,7 +26,7 @@
   - Install [[https://github.com/jamesbowman/gd2-lib][Gameduino2 Library]] to =~/Arduino/libraries/Gameduino2=
     - For convenience a zip file is included in this repo.
 
-** Where to get the hardware:
+** Where to get the hardware
 
   - [[http://excamera.com/sphinx/gameduino3/index.html][Gameduino 3]]
   - [[https://forum.mystorm.uk/t/more-blackice-boards-available/202][BlackIce Board]]
