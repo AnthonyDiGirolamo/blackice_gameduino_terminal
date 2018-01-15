@@ -4,6 +4,12 @@
 
 ** Features
 
+  - [X] Configure BlackIce board from the SD card
+  - [X] 8x8 font, 34 lines, 60 characters per line
+  - [X] Configurable amount of history
+  - [ ] 8x16 VGA font
+  - [ ] 16 color escape sequences
+
 ** Dev environment setup
 
   - Download and Install [[https://www.arduino.cc/en/Main/Software][Arduino]]
