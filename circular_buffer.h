@@ -1,14 +1,12 @@
-// Source
+// Source:
 // https://github.com/embeddedartistry/embedded-resources/blob/master/examples/cpp/circular_buffer.cpp
 
 #ifndef __CIRC_H__
 #define __CIRC_H__
 
 #include <Arduino.h>
-/* #include <cstdio> */
 
 #include <memory>
-/* #include <mutex> */
 
 template <class T>
 class circular_buffer {
@@ -20,20 +18,15 @@ class circular_buffer {
     }
 
   void put(T item) {
-    /* std::lock_guard<std::mutex> lock(mutex_); */
-
     buf_[head_] = item;
     head_ = (head_ + 1) % size_;
 
-    if(head_ == tail_)
-      {
-        tail_ = (tail_ + 1) % size_;
-      }
+    if(head_ == tail_) {
+      tail_ = (tail_ + 1) % size_;
+    }
   }
 
   T get(void) {
-    /* std::lock_guard<std::mutex> lock(mutex_); */
-
     if(empty()) {
       return T();
     }
@@ -46,7 +39,6 @@ class circular_buffer {
   }
 
   void reset(void) {
-    /* std::lock_guard<std::mutex> lock(mutex_); */
     head_ = tail_;
   }
 
@@ -65,7 +57,6 @@ class circular_buffer {
   }
 
  private:
-  /* std::mutex mutex_; */
   std::unique_ptr<T[]> buf_;
   size_t head_ = 0;
   size_t tail_ = 0;
@@ -73,53 +64,3 @@ class circular_buffer {
 };
 
 #endif
-
-/*
-  int main(void)
-  {
-  circular_buffer<uint32_t> circle(10);
-  printf("\n === CPP Circular buffer check ===\n");
-  printf("Capacity: %zu\n", circle.size());
-  uint32_t x = 1;
-  printf("Put 1, val: %d\n", x);
-  circle.put(x);
-  x = circle.get();
-  printf("Popped: %d\n", x);
-  printf("Empty: %d\n", circle.empty());
-
-  printf("Adding 9 values\n");
-  for(uint32_t i = 0; i < circle.size(); i++)
-  {
-  circle.put(i);
-  }
-
-  printf("Full: %d\n", circle.full());
-
-  printf("Reading back values: ");
-  while(!circle.empty())
-  {
-  printf("%u ", circle.get());
-  }
-  printf("\n");
-
-  printf("Adding 15 values\n");
-  for(uint32_t i = 0; i < circle.size() + 5; i++)
-  {
-  circle.put(i);
-  }
-
-  printf("Full: %d\n", circle.full());
-
-  printf("Reading back values: ");
-  while(!circle.empty())
-  {
-  printf("%u ", circle.get());
-  }
-  printf("\n");
-
-  printf("Empty: %d\n", circle.empty());
-  printf("Full: %d\n", circle.full());
-
-  return 0;
-  }
-*/
