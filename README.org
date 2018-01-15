@@ -1,0 +1,28 @@
+* Gameduino Terminal for BlackIce
+
+  [[https://raw.githubusercontent.com/AnthonyDiGirolamo/blackice_gameduino_terminal/master/screenshot1.jpg]]
+
+** Features
+
+** Dev environment setup
+
+  - Download and Install [[https://www.arduino.cc/en/Main/Software][Arduino]]
+
+  - Follow setup instructions for STM32L4 build environment
+    [[https://github.com/GrumpyOldPizza/arduino-STM32L4]]
+
+  - Add [[https://github.com/millerresearch/arduino-mystorm][Arduino support for the BlackIce]] board
+    - Under Preferences in the Arduino IDE, append to the Additional Board Manager URLs the URL http://www.hamnavoe.com/package_millerresearch_mystorm_index.json
+    - Open the Boards Manager from the Tools>Board: menu and type "mystorm" into the search box to find and select "MyStorm by Richard Miller". Select the most recent version and Install.
+    - Under Tools>Board: you should now be able to select "myStorm BlackIce" from the list of boards.
+    - Once the board is selected, BlackIce-specific options will appear on the Tools menu to configure serial port, USB and SD card.
+
+  - Install [[https://github.com/jamesbowman/gd2-lib][Gameduino2 Library]] to =~/Arduino/libraries/Gameduino2=
+    - For convenience a zip file is included in this repo.
+
+** Where to get the hardware:
+
+  - [[http://excamera.com/sphinx/gameduino3/index.html][Gameduino 3]]
+  - [[https://forum.mystorm.uk/t/more-blackice-boards-available/202][BlackIce Board]]
+
+
