@@ -6,12 +6,9 @@ char linebuffer[] = "                                                           
 uint8_t *const linebuffer_const = (uint8_t*)linebuffer;
 
 Terminal::Terminal() {
-  for (uint8_t i=0; i<121; i++) {
-    linebuffer[i] = ' ';
-  }
   scrollback_length = 200;
-  foreground_color = 7;
-  background_color = 4;
+  foreground_color = 15;
+  background_color = 0;
   // set_font_8x8();
   set_font_vga();
   reset();
@@ -46,6 +43,7 @@ void Terminal::reset() {
   cursor_index = 0;
   last_line_address = 0;
 
+  erase_line_buffer();
   set_scrollbar_handle_size();
 }
 
@@ -88,6 +86,17 @@ void Terminal::set_scrollbar_handle_size() {
 
 int32_t unread_count;
 
+void Terminal::erase_line_buffer() {
+  // erase current line
+  strncpy(linebuffer, blank_line, bytes_per_line);
+
+  if (current_font == TEXTVGA) {
+    for (uint8_t i=1; i<120; i+=2) {
+      linebuffer[i] = (background_color << 4) | foreground_color;
+    }
+  }
+}
+
 void Terminal::new_line() {
   // copy linebuffer to FT810 RAM
   upload_to_graphics_ram();
@@ -98,9 +107,8 @@ void Terminal::new_line() {
   last_line_address++;
   if (last_line_address > scrollback_length)
     last_line_address = 0;
-  // erase current line
-  strncpy(linebuffer, blank_line, bytes_per_line);
-  // sprintf(linebuffer, "%-3d", unread_count);
+
+  erase_line_buffer();
   set_scrollbar_handle_size();
 }
 
@@ -116,8 +124,7 @@ void Terminal::append_string(const char* str) {
 
 void Terminal::put_char(char newchar) {
   if (current_font == TEXTVGA) {
-    // linebuffer[cursor_index*2-1] = (background_color << 4) | foreground_color;
-    linebuffer[cursor_index*2-1] = foreground_color;
+    linebuffer[cursor_index*2+1] = (background_color << 4) | foreground_color;
     linebuffer[cursor_index*2] = newchar;
   }
   else {
@@ -155,6 +162,8 @@ void Terminal::draw() {
   GD.BitmapLayout(current_font, bytes_per_line, 1);
   GD.Begin(BITMAPS);
   GD.ColorRGB(WHITE);
+  if (current_font == TEXTVGA)
+    GD.BlendFunc(ONE, ZERO);
 
   uint16_t current_line_address = last_line_address;
   if (scroll_offset > 0)
@@ -179,6 +188,7 @@ void Terminal::draw() {
     current_line_address = (current_line_address + (scrollback_length-1)) % scrollback_length;
   }
 
+  GD.BlendFunc(SRC_ALPHA, ONE_MINUS_SRC_ALPHA);
   GD.ColorA(64); // alpha to 64/256
   GD.cmd_bgcolor(VALHALLA);
   GD.cmd_fgcolor(LIGHT_STEEL_BLUE);

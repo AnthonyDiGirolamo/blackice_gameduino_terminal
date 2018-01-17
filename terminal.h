@@ -87,14 +87,16 @@ public:
   void set_font_8x8();
   void set_font_vga();
   void ring_bell();
-  void append_string(const char* str);
-  void put_char(char newchar);
   uint8_t append_character(char newchar);
-  void update_scrollbar_position(uint16_t new_position);
-  void set_scrollbar_handle_size();
+  void append_string(const char* str);
   void new_line();
   void upload_to_graphics_ram();
+  void update_scrollbar_position(uint16_t new_position);
   void draw();
+ private:
+  void erase_line_buffer();
+  void put_char(char newchar);
+  void set_scrollbar_handle_size();
 };
 
 #endif

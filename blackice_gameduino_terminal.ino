@@ -9,8 +9,9 @@
 #define TAG_BUTTON_RETURN 203
 #define TAG_BUTTON_BACKSPACE 204
 #define TAG_BUTTON_BELL 205
+#define TAG_BUTTON_FONT 206
 
-#define BUTTON_REPEAT_RATE 100
+#define BUTTON_REPEAT_RATE 250
 uint32_t last_button_push = millis();
 
 Terminal terminal;
@@ -55,32 +56,45 @@ void setup() {
   // digitalWrite(LED_BUILTIN, 0);
 
   // send a string to the terminal
-  terminal.append_string("Welcome!\n\n");
+  terminal.append_string("Color Test\n\n");
 
-  char cnum[] = "          ";
-  uint8_t fg = 0, bg = 7;
+  // TextVGA test
+  char cnum[] = "   ";
+  uint8_t fg = 0, bg = 0;
   sprintf(cnum, "%-3u", fg);
   while (1) {
     GD.Clear();
     if (millis() > last_serial_recieve_time + 100) {
       terminal.foreground_color = fg;
+      terminal.background_color = 0;
 
       // if (fg % 10 == 0) {
       // bg = (bg+1)%16;
       terminal.new_line();
+      terminal.append_string("fg ");
       sprintf(cnum, "%-3u", fg);
       terminal.append_string(cnum);
-      // }
-      // terminal.background_color = bg;
 
-      terminal.append_character(fg+48);
+      terminal.append_string("bg ");
+
+      for (bg = 0; bg<16; bg++) {
+        terminal.background_color = bg;
+        sprintf(cnum, "%-3u", bg);
+        terminal.append_string(cnum);
+      }
+
       terminal.upload_to_graphics_ram();
       fg = (fg+1)%256;
       last_serial_recieve_time = millis();
     }
     terminal.draw();
     GD.swap();
+    if (fg > 15)
+      break;
   }
+  terminal.new_line();
+  terminal.foreground_color = 15;
+  terminal.background_color = 0;
 
   // Check the SD card for bin files to configure the FPGA with
   // if 'default.bin' exists, use that
@@ -166,6 +180,14 @@ void loop() {
           Serial1.write("words\n");
         }
         break;
+      case TAG_BUTTON_FONT:
+        if (millis() > last_button_push + BUTTON_REPEAT_RATE) {
+          if (terminal.current_font == TEXT8X8)
+            terminal.set_font_vga();
+          else
+            terminal.set_font_8x8();
+        }
+        break;
       case TAG_BUTTON_BELL:
         if (millis() > last_button_push + BUTTON_REPEAT_RATE) {
           terminal.ring_bell();
@@ -210,6 +232,9 @@ void loop() {
 
       GD.Tag(TAG_BUTTON_MACRO);
       GD.cmd_button(60, 12, 50, 30, 18, OPT_FLAT,  "words");
+
+      GD.Tag(TAG_BUTTON_FONT);
+      GD.cmd_button(110, 12, 40, 30, 18, OPT_FLAT,  "font");
 
       GD.ColorA(128); // alpha to 64/256
       GD.cmd_bgcolor(BLACK);
