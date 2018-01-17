@@ -1,16 +1,51 @@
 #include "terminal.h"
 
-const char blank_line[] = "                                                            ";
-char linebuffer[] = "                                                            ";
+// 120 character strings
+const char blank_line[] = "                                                                                                                          ";
+char linebuffer[] = "                                                                                                                          ";
 uint8_t *const linebuffer_const = (uint8_t*)linebuffer;
 
 Terminal::Terminal() {
-  lines_per_screen = 34;
+  for (uint8_t i=0; i<121; i++) {
+    linebuffer[i] = ' ';
+  }
   scrollback_length = 200;
+  foreground_color = 7;
+  background_color = 4;
+  // set_font_8x8();
+  set_font_vga();
+  reset();
+}
+
+void Terminal::set_font_8x8() {
+  current_font = TEXT8X8;
+  lines_per_screen = 34;
+  line_pixel_height = 8;
+  characters_per_line = 60;
+  bytes_per_line = 60;
+}
+
+void Terminal::set_font_vga() {
+  current_font = TEXTVGA;
+  lines_per_screen = 17;
+  line_pixel_height = 16;
+  characters_per_line = 60;
+  bytes_per_line = 120;
+}
+
+void Terminal::reset() {
+  // // set all line history to spaces
+  // strncpy(linebuffer, blank_line, characters_per_line);
+  // for (uint16_t i = 0; i<scrollback_length; i++) {
+  //   GD.cmd_memwrite(i*characters_per_line, characters_per_line);
+  //   GD.copy(linebuffer_const, characters_per_line);
+  // }
+
+  bell = 0;
   line_count = 1;
   cursor_index = 0;
   last_line_address = 0;
-  bell = 0;
+
   set_scrollbar_handle_size();
 }
 
@@ -38,9 +73,8 @@ void Terminal::update_scrollbar_position(uint16_t new_position) {
 }
 
 void Terminal::upload_to_graphics_ram() {
-  GD.cmd_memwrite(last_line_address*CHARACTERS_PER_LINE, CHARACTERS_PER_LINE);
-  GD.copy(linebuffer_const, CHARACTERS_PER_LINE);
-
+  GD.cmd_memwrite(last_line_address*bytes_per_line, bytes_per_line);
+  GD.copy(linebuffer_const, bytes_per_line);
 }
 
 void Terminal::set_scrollbar_handle_size() {
@@ -65,7 +99,7 @@ void Terminal::new_line() {
   if (last_line_address > scrollback_length)
     last_line_address = 0;
   // erase current line
-  strncpy(linebuffer, blank_line, CHARACTERS_PER_LINE);
+  strncpy(linebuffer, blank_line, bytes_per_line);
   // sprintf(linebuffer, "%-3d", unread_count);
   set_scrollbar_handle_size();
 }
@@ -80,8 +114,19 @@ void Terminal::append_string(const char* str) {
   // append_character((char) 13);
 }
 
+void Terminal::put_char(char newchar) {
+  if (current_font == TEXTVGA) {
+    // linebuffer[cursor_index*2-1] = (background_color << 4) | foreground_color;
+    linebuffer[cursor_index*2-1] = foreground_color;
+    linebuffer[cursor_index*2] = newchar;
+  }
+  else {
+    linebuffer[cursor_index] = newchar;
+  }
+}
+
 uint8_t Terminal::append_character(char newchar) {
-  if (cursor_index >= CHARACTERS_PER_LINE
+  if (cursor_index >= characters_per_line
       || newchar == KEY_CR
       || newchar == KEY_LF) {
     new_line();
@@ -92,19 +137,22 @@ uint8_t Terminal::append_character(char newchar) {
   case KEY_BACKSPACE:
     // delete current char if not at the beginning of the line
     if (cursor_index > 0) {
-      linebuffer[cursor_index--] = ' ';
+      put_char(' ');
+      cursor_index--;
+
     }
     break;
   default:
-    linebuffer[cursor_index++] = newchar;
+    put_char(newchar);
+    cursor_index++;
     break;
   }
   return CHAR_READ;
 }
 
 void Terminal::draw() {
-  GD.BitmapSize(NEAREST, BORDER, BORDER, 480, 8);
-  GD.BitmapLayout(TEXT8X8, CHARACTERS_PER_LINE, 1);
+  GD.BitmapSize(NEAREST, BORDER, BORDER, 480, line_pixel_height);
+  GD.BitmapLayout(current_font, bytes_per_line, 1);
   GD.Begin(BITMAPS);
   GD.ColorRGB(WHITE);
 
@@ -124,8 +172,8 @@ void Terminal::draw() {
   }
 
   for (int i=0; i<min_lines; i++) {
-    ycoord = GD.h - LINE_PIXEL_HEIGHT - (LINE_PIXEL_HEIGHT * i);
-    GD.BitmapSource( current_line_address * CHARACTERS_PER_LINE );
+    ycoord = GD.h - line_pixel_height - (line_pixel_height * i);
+    GD.BitmapSource( current_line_address * bytes_per_line );
     GD.Vertex2ii(max_xoffset ? GD.random(max_xoffset) : 0,
                  ycoord);
     current_line_address = (current_line_address + (scrollback_length-1)) % scrollback_length;

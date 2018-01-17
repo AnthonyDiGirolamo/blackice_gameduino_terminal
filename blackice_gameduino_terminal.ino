@@ -57,6 +57,31 @@ void setup() {
   // send a string to the terminal
   terminal.append_string("Welcome!\n\n");
 
+  char cnum[] = "          ";
+  uint8_t fg = 0, bg = 7;
+  sprintf(cnum, "%-3u", fg);
+  while (1) {
+    GD.Clear();
+    if (millis() > last_serial_recieve_time + 100) {
+      terminal.foreground_color = fg;
+
+      // if (fg % 10 == 0) {
+      // bg = (bg+1)%16;
+      terminal.new_line();
+      sprintf(cnum, "%-3u", fg);
+      terminal.append_string(cnum);
+      // }
+      // terminal.background_color = bg;
+
+      terminal.append_character(fg+48);
+      terminal.upload_to_graphics_ram();
+      fg = (fg+1)%256;
+      last_serial_recieve_time = millis();
+    }
+    terminal.draw();
+    GD.swap();
+  }
+
   // Check the SD card for bin files to configure the FPGA with
   // if 'default.bin' exists, use that
   if (DOSFS.begin() && DOSFS.check()) {

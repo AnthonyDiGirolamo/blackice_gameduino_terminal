@@ -52,8 +52,6 @@
 #define KEY_ESC 27
 #define KEY_DEL 127
 
-#define LINE_PIXEL_HEIGHT 8
-#define CHARACTERS_PER_LINE 60
 #define SCROLLBAR_WIDTH 20
 #define SCROLLBAR_HALF_WIDTH 10
 
@@ -69,6 +67,12 @@ public:
   uint16_t line_count;
   uint16_t last_line_address;
   uint16_t lines_per_screen;
+  uint8_t line_pixel_height;
+  uint8_t characters_per_line;
+  uint8_t bytes_per_line;
+  uint8_t current_font;
+  uint8_t foreground_color;
+  uint8_t background_color;
   uint16_t scrollback_length;
   float lines_per_screen_percent;
   uint16_t scrollbar_size;
@@ -79,8 +83,12 @@ public:
 
   uint16_t bell;
 
+  void reset();
+  void set_font_8x8();
+  void set_font_vga();
   void ring_bell();
   void append_string(const char* str);
+  void put_char(char newchar);
   uint8_t append_character(char newchar);
   void update_scrollbar_position(uint16_t new_position);
   void set_scrollbar_handle_size();
